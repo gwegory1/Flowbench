@@ -142,7 +142,10 @@ class MainWindow(QtWidgets.QMainWindow):
         builder_layout.addWidget(self.overlay_list)
 
         # internal overlay storage
+        # store tuples: (label, xs, ys, color)
         self._overlays = []
+        # simple color palette for overlays (contrasting retro colors)
+        self._color_palette = ['#ff3864', '#1a73e8', '#f9a825', '#00e676', '#9b59b6', '#ff6f00', '#00bcd4']
 
         # state
         self._sim = None
@@ -335,9 +338,15 @@ class MainWindow(QtWidgets.QMainWindow):
         if not xs:
             QtWidgets.QMessageBox.information(self, 'No data', 'Builder has no valid data to save as overlay.')
             return
-        label = f'Overlay {len(self._overlays) + 1}'
-        self._overlays.append((label, xs, ys))
-        self.overlay_list.addItem(label)
+        idx = len(self._overlays)
+        color = self._color_palette[idx % len(self._color_palette)]
+        label = f'Overlay {idx + 1}'
+        self._overlays.append((label, xs, ys, color))
+        item = QtWidgets.QListWidgetItem(label)
+        # make the list item show the color as a small swatch
+        item.setData(QtCore.Qt.UserRole, color)
+        item.setForeground(QtGui.QBrush(QtGui.QColor(color)))
+        self.overlay_list.addItem(item)
 
     def remove_overlay(self):
         item = self.overlay_list.currentItem()
@@ -357,14 +366,14 @@ class MainWindow(QtWidgets.QMainWindow):
         idx = self.overlay_list.row(item)
         if idx < 0 or idx >= len(self._overlays):
             return
-        _, xs, ys = self._overlays[idx]
-        self.plot.plot_series(xs, ys, clear=True, label=item.text())
+        _, xs, ys, color = self._overlays[idx]
+        self.plot.plot_series(xs, ys, clear=True, label=item.text(), color=color, symbolBrush=color)
 
     def _replot_overlays(self):
         # clear then plot all overlays
         self.plot.clear()
-        for label, xs, ys in self._overlays:
-            self.plot.plot_series(xs, ys, clear=False, label=label)
+        for label, xs, ys, color in self._overlays:
+            self.plot.plot_series(xs, ys, clear=False, label=label, color=color, symbolBrush=color)
 
 
 def main(argv):
