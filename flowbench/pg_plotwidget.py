@@ -40,11 +40,19 @@ class PGPlotWidget(QtWidgets.QWidget):
         # PyQtGraph is efficient with lists
         self._curve.setData(list(self.times), list(self.values))
 
-    def plot_series(self, x_vals, y_vals, clear=True, label=None):
+    def plot_series(self, x_vals, y_vals, clear=True, label=None, color: str = None, symbolBrush: str = None):
+        """Plot a series. Optional `color` and `symbolBrush` let callers pick colors for overlays.
+
+        Parameters:
+        - color: hex color string for the line (defaults to blue)
+        - symbolBrush: hex color string for marker fill (defaults to teal)
+        """
         if clear:
             self.plotw.clear()
-        pen = pg.mkPen('#1a73e8', width=2)
-        self.plotw.plot(x_vals, y_vals, pen=pen, symbol='o', symbolBrush='#66ffda')
+        pen_color = color or '#1a73e8'
+        marker_brush = symbolBrush or '#66ffda'
+        pen = pg.mkPen(pen_color, width=2)
+        self.plotw.plot(x_vals, y_vals, pen=pen, symbol='o', symbolBrush=marker_brush)
         if label:
             self.plotw.setTitle(label, color='#8fe6c7')
 
