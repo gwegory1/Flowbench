@@ -20,9 +20,9 @@ class PGPlotWidget(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         # Configure PyQtGraph appearance to match the dark blue/green theme
-        pg.setConfigOptions(background='#081722', foreground='#8fe6c7', antialias=True)
+        pg.setConfigOptions(background='#071227', foreground='#8fe6c7', antialias=True)
         self.plotw = pg.PlotWidget()
-        self.plotw.setBackground('#081722')
+        self.plotw.setBackground('#071227')
         self.plotw.showGrid(x=True, y=True, alpha=0.25)
         self.plotw.getAxis('left').setPen(pg.mkPen('#8fe6c7'))
         self.plotw.getAxis('bottom').setPen(pg.mkPen('#8fe6c7'))
