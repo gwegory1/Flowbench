@@ -144,8 +144,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # internal overlay storage
         # store tuples: (label, xs, ys, color)
         self._overlays = []
-        # simple color palette for overlays (contrasting retro colors)
+        # simple color palette for overlays and manual builds (contrasting retro colors)
         self._color_palette = ['#ff3864', '#1a73e8', '#f9a825', '#00e676', '#9b59b6', '#ff6f00', '#00bcd4']
+        # index for assigning next color to a manual build or overlay
+        self._next_color_idx = 0
 
         # state
         self._sim = None
@@ -278,9 +280,12 @@ class MainWindow(QtWidgets.QMainWindow):
             xs.append(x)
             ys.append(y)
         if xs and ys:
+            # pick a color for this series
+            color = self._color_palette[self._next_color_idx % len(self._color_palette)]
+            self._next_color_idx += 1
             # if overlay checkbox is set, don't clear existing plot
             clear = not self.overlay_checkbox.isChecked()
-            self.plot.plot_series(xs, ys, clear=clear, label='Manual Build')
+            self.plot.plot_series(xs, ys, clear=clear, label='Manual Build', color=color, symbolBrush=color)
 
     def clear_builder(self):
         self.table.setRowCount(0)
@@ -393,6 +398,13 @@ def main(argv):
     QHeaderView::section { background: #062433; color: #9be9c9; border: 1px solid #0c3942; padding: 6px; }
     QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox { background: #06141a; border: 1px solid #0b3b4a; padding: 4px; color: #cfeef5; }
     QScrollBar:vertical { background: #061a24; width: 10px; }
+    /* Improved QCheckBox indicator styling so checked state is visible */
+    QCheckBox { color: #cfeef5; spacing: 6px; }
+    QCheckBox::indicator { width: 16px; height: 16px; border: 2px solid #0b5260; border-radius: 2px; background: #06141a; }
+    QCheckBox::indicator:unchecked { background: #06141a; border: 2px solid #0b5260; }
+    QCheckBox::indicator:checked { background: #00e676; border: 2px solid #00e676; }
+    QCheckBox::indicator:checked:hover { background: #32ff8a; }
+    QCheckBox::indicator:disabled { background: #031216; border: 2px solid #04282b; }
     """
     app.setStyleSheet(stylesheet)
     w = MainWindow()
