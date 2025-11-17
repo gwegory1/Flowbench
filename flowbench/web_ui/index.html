@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>FlowBench (Web)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #071227;
+        --panel: #081722;
+        --accent: #00e676;
+        --accent2: #1a73e8;
+        --muted: #9aa7b1;
+        --text: #cfeef5;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: linear-gradient(180deg, #05121b, #071227);
+        font-family: Inter, Segoe UI, Arial;
+        color: var(--text);
+      }
+      .wrap {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      .top {
+        display: flex;
+        gap: 20px;
+        padding: 18px;
+      }
+      .card {
+        width: 360px;
+        background: linear-gradient(180deg, #071827, #05121b);
+        border-radius: 12px;
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      }
+      .readout {
+        font-size: 52px;
+        font-weight: 800;
+        color: var(--accent);
+        line-height: 1;
+      }
+      .unit {
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .btn {
+        background: linear-gradient(180deg, #083148, #062233);
+        border: none;
+        padding: 10px 14px;
+        border-radius: 10px;
+        color: var(--text);
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .btn.ghost {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+      }
+      .plot {
+        flex: 1;
+        margin: 12px;
+        border-radius: 12px;
+        padding: 10px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.02),
+          transparent
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .builder {
+        margin: 12px;
+        padding: 14px;
+        border-radius: 12px;
+        background: linear-gradient(180deg, #061827, #05121b);
+      }
+      .controls .status {
+        padding: 6px 10px;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.2);
+        font-size: 13px;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+      input,
+      select {
+        background: #071b22;
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        color: var(--text);
+        padding: 8px;
+        border-radius: 8px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      th {
+        color: #9be9c9;
+        text-align: left;
+        padding: 8px;
+      }
+      td {
+        padding: 8px;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <div class="card">
+          <div class="readout" id="readout">---</div>
+          <div class="unit" id="unit">L/min</div>
+          <div class="controls">
+            <button class="btn" id="start">Start</button>
+            <button class="btn ghost" id="stop">Stop</button>
+            <button class="btn" id="record">Record</button>
+            <div class="status muted" id="rec_status">Not recording</div>
+          </div>
+          <div class="muted" style="margin-top: 12px">
+            Live simulated flowbench • Manual graph builder below
+          </div>
+        </div>
+        <div class="plot" id="plot">Loading plot…</div>
+      </div>
+
+      <div class="builder">
+        <div style="display: flex; gap: 12px; align-items: center">
+          <label
+            >Resolution:
+            <input
+              id="res"
+              type="number"
+              value="1"
+              step="0.001"
+              style="width: 120px"
+          /></label>
+          <select id="unit_select">
+            <option>s</option>
+            <option>mm</option>
+          </select>
+          <label
+            >Slots:
+            <input
+              id="slots"
+              type="number"
+              value="10"
+              min="1"
+              max="1000"
+              style="width: 80px"
+          /></label>
+          <button class="btn ghost" id="setup">Setup Slots</button>
+        </div>
+
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th>X</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <div class="actions">
+          <button class="btn" id="add_current">Add Current to Next</button>
+          <button class="btn" id="build">Build Graph</button>
+          <button class="btn ghost" id="clear">Clear Builder</button>
+          <button class="btn ghost" id="save">Save Builder</button>
+          <button class="btn ghost" id="load">Load Builder</button>
+          <button class="btn" id="export">Export SVG</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // canvas plot
+      const canvas = document.createElement("canvas");
+      canvas.width = 980;
+      canvas.height = 420;
+      const plotArea = document.getElementById("plot");
+      plotArea.innerHTML = "";
+      plotArea.appendChild(canvas);
+      const ctx = canvas.getContext("2d");
+      let samples = [];
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // background
+        ctx.fillStyle = "#081722";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (!samples.length) return;
+        const vals = samples.map((s) => s.value);
+        const minv = Math.min(...vals);
+        const maxv = Math.max(...vals);
+        const range = Math.max(1e-6, maxv - minv);
+        ctx.strokeStyle = "#00e676";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < samples.length; i++) {
+          const x = (i / (samples.length - 1)) * canvas.width;
+          const y =
+            canvas.height - ((samples[i].value - minv) / range) * canvas.height;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      window.onSample = function (payload) {
+        const s = payload;
+        document.getElementById("readout").textContent = s.value.toFixed(3);
+        samples.push(s);
+        if (samples.length > 600) samples.shift();
+        draw();
+      };
+
+      // API helper
+      async function callApi(name, arg) {
+        if (!window.pywebview) return null;
+        try {
+          return await window.pywebview.api[name](arg);
+        } catch (e) {
+          console.warn(e);
+          return null;
+        }
+      }
+
+      const startBtn = document.getElementById("start"),
+        stopBtn = document.getElementById("stop"),
+        recBtn = document.getElementById("record"),
+        recStatus = document.getElementById("rec_status");
+      startBtn.onclick = async () => {
+        await callApi("start");
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+      };
+      stopBtn.onclick = async () => {
+        await callApi("stop");
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      };
+      recBtn.onclick = async () => {
+        const r = await callApi("toggle_record");
+        recStatus.textContent = r ? "Recording…" : "Not recording";
+        recBtn.textContent = r ? "Stop" : "Record";
+      };
+
+      // builder
+      document.getElementById("setup").onclick = () => {
+        const slots = parseInt(document.getElementById("slots").value) || 10;
+        const res = parseFloat(document.getElementById("res").value) || 1.0;
+        const ul = document.getElementById("unit_select").value.trim();
+        const tbody = document.querySelector("#tbl tbody");
+        tbody.innerHTML = "";
+        for (let i = 0; i < slots; i++) {
+          const tr = document.createElement("tr");
+          const td0 = document.createElement("td");
+          td0.textContent = (i * res).toFixed(3) + ul;
+          const td1 = document.createElement("td");
+          td1.textContent = "";
+          tr.appendChild(td0);
+          tr.appendChild(td1);
+          tbody.appendChild(tr);
+        }
+      };
+      document.getElementById("add_current").onclick = () => {
+        const tbody = document.querySelector("#tbl tbody");
+        for (let i = 0; i < tbody.children.length; i++) {
+          const cell = tbody.children[i].children[1];
+          if (!cell.textContent.trim()) {
+            cell.textContent = samples.length
+              ? samples[samples.length - 1].value.toFixed(3)
+              : "";
+            break;
+          }
+        }
+      };
+      document.getElementById("build").onclick = () => {
+        const tbody = document.querySelector("#tbl tbody");
+        const xs = [];
+        const ys = [];
+        for (let i = 0; i < tbody.children.length; i++) {
+          const x = tbody.children[i].children[0].textContent.replace(
+            /[a-z]/gi,
+            ""
+          );
+          const y = tbody.children[i].children[1].textContent.trim();
+          if (x && y) {
+            xs.push(parseFloat(x));
+            ys.push(parseFloat(y));
+          }
+        }
+        samples = xs.map((x, i) => ({ timestamp: x, value: ys[i] || 0 }));
+        draw();
+      };
+      document.getElementById("clear").onclick = () => {
+        document.querySelector("#tbl tbody").innerHTML = "";
+        samples = [];
+        draw();
+      };
+
+      document.getElementById("save").onclick = async () => {
+        const tbody = document.querySelector("#tbl tbody");
+        const rows = [];
+        for (let i = 0; i < tbody.children.length; i++) {
+          const x = tbody.children[i].children[0].textContent;
+          const y = tbody.children[i].children[1].textContent;
+          rows.push([x, y]);
+        }
+        await callApi("save_builder", JSON.stringify(rows));
+      };
+      document.getElementById("load").onclick = async () => {
+        const csv = await callApi("load_builder");
+        if (!csv) return;
+        const rows = JSON.parse(csv);
+        const tbody = document.querySelector("#tbl tbody");
+        tbody.innerHTML = "";
+        for (const r of rows) {
+          const tr = document.createElement("tr");
+          const td0 = document.createElement("td");
+          td0.textContent = r[0];
+          const td1 = document.createElement("td");
+          td1.textContent = r[1];
+          tr.appendChild(td0);
+          tr.appendChild(td1);
+          tbody.appendChild(tr);
+        }
+      };
+
+      document.getElementById("export").onclick = async () => {
+        const svgData = canvas.toDataURL("image/svg+xml");
+        await callApi("save_svg", svgData);
+      };
+    </script>
+  </body>
+</html>
